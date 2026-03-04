@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/notification_db
+    url: jdbc:postgresql://localhost:5432/notification_db?-c%20timezone=Asia/Kolkata
     username: postgres
     password: postgres
   jpa:
