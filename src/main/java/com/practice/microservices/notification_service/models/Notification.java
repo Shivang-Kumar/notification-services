@@ -1,6 +1,7 @@
 package com.practice.microservices.notification_service.models;
 
 import java.time.Instant;
+import java.util.Map;
 import java.util.UUID;
 
 import jakarta.persistence.Column;
@@ -11,6 +12,8 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import lombok.Getter;
+import lombok.Setter;
 
 @Entity
 @Table(name="notifications",
@@ -18,8 +21,8 @@ import jakarta.persistence.Table;
 					@Index(name="idx_status_retry",columnList="status,nextRetryAt"),
 					@Index(name="idx_event_id", columnList="eventId", unique=true)
 			})
-
-
+@Getter
+@Setter
 public class Notification {
 		
 	@Id
@@ -38,7 +41,7 @@ public class Notification {
 	private String templateId;
 	
 	@Column(columnDefinition="TEXT")
-	private String payload;
+	private Map<String,Object> payload;
 	
 	@Enumerated(EnumType.STRING)
 	private NotificationStatus status;

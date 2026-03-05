@@ -9,12 +9,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import com.practice.microservices.notification_service.models.Notification;
 import com.practice.microservices.notification_service.models.NotificationStatus;
 
-public interface NotificationRepository 
-extends JpaRepository<Notification, UUID> {
+public interface NotificationRepository extends JpaRepository<Notification, UUID> {
 
-boolean existsByEventId(String eventId);
+	boolean existsByEventId(String eventId);
 
-List<Notification> findTop50ByStatusAndNextRetryAtBefore(
-    NotificationStatus status,
-    Instant now);
+	List<Notification> findTop50ByStatusAndNextRetryAtBefore(NotificationStatus status, Instant now);
 }

@@ -1,3 +1,6 @@
+server:
+ port: 9258
+
 spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/notification_db?-c%20timezone=Asia/Kolkata
@@ -15,10 +18,15 @@ spring:
     bootstrap-servers: localhost:9092
     consumer:
       group-id: notification-service-group
-      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      key-deserializer:  org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
         spring.json.trusted.packages: "*"
+        spring.json.value.default.type: com.practice.microservices.notification_service.models.Notification
+
+      enable-auto-commit: false
+    listener:
+       ack-mode: manual
 
   mail:
     host: smtp.gmail.com
