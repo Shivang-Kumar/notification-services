@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.practice.microservices.notification_service.models.Notification;
+import com.practice.microservices.notification_service.models.NotificationDto;
 import com.practice.microservices.notification_service.models.NotificationStatus;
 import com.practice.microservices.notification_service.repository.NotificationRepository;
 
@@ -32,7 +33,7 @@ public class NotificationConsumer {
     }
 
     @KafkaListener(topics = "notification.events")
-    public void consume(Notification event,
+    public void consume(NotificationDto event,
                         Acknowledgment acknowledgment) {
 
         try {
@@ -42,7 +43,10 @@ public class NotificationConsumer {
             notification.setEventId(event.getEventId());
             notification.setRecipient(event.getRecipient());
             notification.setTemplateId(event.getTemplateId());
-            notification.setPayload(event.getPayload());
+
+            // Convert Map to JSON string
+            String payloadJson = objectMapper.writeValueAsString(event.getPayload());
+            notification.setPayload(payloadJson);
 
             notification.setStatus(NotificationStatus.PENDING);
             notification.setRetryCount(0);
