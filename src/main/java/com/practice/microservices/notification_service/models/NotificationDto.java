@@ -1,6 +1,7 @@
 package com.practice.microservices.notification_service.models;
 
 import java.time.Instant;
+import java.util.Map;
 import java.util.UUID;
 
 import jakarta.persistence.Column;
@@ -14,35 +15,25 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
-@Entity
-@Table(name="notifications",
-			indexes= {
-					@Index(name="idx_status_retry",columnList="status,nextRetryAt"),
-					@Index(name="idx_event_id", columnList="eventId", unique=true)
-			})
+
 @Getter
 @Setter
-public class Notification {
+public class NotificationDto {
 		
-	@Id
 	private UUID id;
 	
-	@Column(nullable=false,unique=true)
 	private String eventId;
 	
 	private String traceId;
-	
-	@Enumerated(EnumType.STRING)
+
 	private NotificationChannel channel;
 	
 	private String recipient;
 	
 	private String templateId;
+
+	private Map<String,Object> payload;
 	
-	@Column(columnDefinition="TEXT")
-	private String payload;
-	
-	@Enumerated(EnumType.STRING)
 	private NotificationStatus status;
 	
 	private int retryCount;
@@ -51,10 +42,5 @@ public class Notification {
 	private Instant createdAt;
 	private Instant processedAt;
 	private String version;
-	
-	 @PrePersist
-	    public void prePersist() {
-	        this.id = UUID.randomUUID();
-	        this.createdAt = Instant.now();
-	    }
+
 }
