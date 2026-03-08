@@ -9,6 +9,5 @@ import com.practice.microservices.notification_service.models.NotificationTempla
 public interface NotificationTemplateRepository 
         extends JpaRepository<NotificationTemplate, UUID> {
 
-    Optional<NotificationTemplate> 
-        findByTemplateCodeAndActiveTrue(String templateCode);
+    Optional<NotificationTemplate> findByTemplateCodeAndActiveTrue(String templateCode);
 }
