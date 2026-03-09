@@ -11,12 +11,16 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import lombok.Getter;
+import lombok.Setter;
 
 @Entity
 @Table(name = "notification_templates",
        indexes = {
            @Index(name = "idx_template_code", columnList = "templateCode", unique = true)
        })
+@Getter
+@Setter
 public class NotificationTemplate {
 
     @Id
