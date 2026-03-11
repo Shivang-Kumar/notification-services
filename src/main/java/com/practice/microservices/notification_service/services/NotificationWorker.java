@@ -29,6 +29,7 @@ public class NotificationWorker {
 
     private final NotificationRepository notificationRepository;
     private final ExecutorService executor;
+    private final NotificationProcessor processor;
     
     
     @Scheduled(fixedDelay= 5000)
@@ -46,32 +47,23 @@ public class NotificationWorker {
     
     private void processNotification(Notification notification)
     {
-    	System.out.println("Processing Notification: Lalalalalalala   lallaaaaaa.........    "+notification.getId());
-    	
-    	try {
-    		//simulating sending notification
-        	sendNotification(notification);
-        	
-        	notification.setStatus(NotificationStatus.SENT);
-        	notificationRepository.save(notification);
-    	}
-    	catch(Exception ex)
-    	{
-    		handleFailure(notification);
-    	}
+        System.out.println("Processing Notification: " + notification.getId());
+
+        try {
+            processor.process(notification);
+
+            notification.setStatus(NotificationStatus.SENT);
+            notification.setProcessedAt(Instant.now());
+
+            notificationRepository.save(notification);
+        }
+        catch(Exception ex)
+        {
+            handleFailure(notification);
+        }
     }
     
-    private void sendNotification(Notification notification) throws Exception
-    {
-    	//simulating random failure
-    	if(Math.random()<0.3)
-    	{
-    		throw new RuntimeException("Simulation Failure");
-    	}
-    	
-    	System.out.println("Notification sent   successfully: "+notification.getId());
-    	
-    }
+  
     
     
     private void handleFailure(Notification notification)
