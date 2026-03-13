@@ -30,6 +30,11 @@ public class NotificationWorker {
     private final NotificationRepository notificationRepository;
     private final ExecutorService executor;
     private final NotificationProcessor processor;
+    private final KafkaDlqPublisher dlqPublisher;
+
+    
+    private static final int MAX_RETRIES = 3;
+
     
     
     @Scheduled(fixedDelay= 5000)
@@ -59,26 +64,29 @@ public class NotificationWorker {
         }
         catch(Exception ex)
         {
-            handleFailure(notification);
+            handleFailure(notification,ex);
         }
     }
     
   
     
     
-    private void handleFailure(Notification notification)
+    private void handleFailure(Notification notification,Exception ex)
     {
     	int retryCount=notification.getRetryCount()+1;
     	notification.setRetryCount(retryCount);
     	
-    	if(retryCount>4)
+    	if(retryCount>=MAX_RETRIES)
     	{
     		notification.setStatus(NotificationStatus.DEAD);
+    		dlqPublisher.publish(notification);
     	}
     	else {
+    		
     		notification.setStatus(NotificationStatus.PENDING);
-    		long delaySeconds=(long)Math.pow(2,retryCount)*30;
-    		notification.setNextRetryAt(notification.getNextRetryAt().plusSeconds(delaySeconds));
+    		long delaySeconds = 60; // fixed retry
+    		notification.setNextRetryAt(Instant.now().plusSeconds(delaySeconds));
+    		notification.setErrorMessage(ex.getMessage());
     	}
     	notificationRepository.save(notification);
     }
