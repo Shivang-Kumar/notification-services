@@ -47,7 +47,8 @@ public class NotificationConsumer {
             // Convert Map to JSON string
             String payloadJson = objectMapper.writeValueAsString(event.getPayload());
             notification.setPayload(payloadJson);
-
+            notification.setChannel(event.getChannel());
+            notification.setNextRetryAt(Instant.now());
             notification.setStatus(NotificationStatus.PENDING);
             notification.setRetryCount(0);
             notification.setCreatedAt(Instant.now());
@@ -64,8 +65,7 @@ public class NotificationConsumer {
 
         } catch (Exception e) {
 
-            // DO NOT acknowledge
-            // Kafka will retry automatically
+        	acknowledgment.acknowledge();
             throw new RuntimeException(e);
         }
 

@@ -14,6 +14,7 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.practice.microservices.notification_service.models.Notification;
@@ -36,7 +37,7 @@ public class NotificationWorker {
     private static final int MAX_RETRIES = 3;
 
     
-    
+    @Transactional
     @Scheduled(fixedDelay= 5000)
     public void pollNotification()
     {

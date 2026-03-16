@@ -9,16 +9,14 @@ import org.thymeleaf.templateresolver.StringTemplateResolver;
 @Configuration
 public class ThymeleafConfig {
 @Bean
-    public TemplateEngine notificationTemplateEngine() {
-
-        TemplateEngine engine = new TemplateEngine();
+    public StringTemplateResolver notificationTemplateEngine() {
 
         StringTemplateResolver resolver = new StringTemplateResolver();
+
         resolver.setTemplateMode("HTML");
         resolver.setCacheable(false);
+        resolver.setOrder(1);
 
-        engine.setTemplateResolver(resolver);
-
-        return engine;
+        return resolver;
     }
 }
