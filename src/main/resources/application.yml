@@ -37,16 +37,14 @@ spring:
        ack-mode: manual
 
   mail:
-    host: sandbox.smtp.mailtrap.io
-    port: 2525
-    username: notification_service
-    password: notification_service_pass
+    host: localhost
+    port: 1025
     properties:
       mail:
         smtp:
-          auth: true
+          auth: false
           starttls:
-            enable: true
+            enable: false
 
 notification:
  email:
