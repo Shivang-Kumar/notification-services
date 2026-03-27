@@ -2,6 +2,7 @@ package com.practice.microservices.notification_service.services;
 
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Profile;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
@@ -13,6 +14,7 @@ import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 
 @Service
+@Profile({"dev", "test"})
 @RequiredArgsConstructor
 public class EmailSender implements NotificationSender {
 
