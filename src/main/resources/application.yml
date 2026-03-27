@@ -1,7 +1,10 @@
 server:
  port: 9258
 
+
 spring:
+  profiles:
+    active: dev
   thymeleaf:
     enabled: false
   datasource:
@@ -36,16 +39,4 @@ spring:
     listener:
        ack-mode: manual
 
-  mail:
-    host: localhost
-    port: 1025
-    properties:
-      mail:
-        smtp:
-          auth: false
-          starttls:
-            enable: false
-
-notification:
- email:
-   from: noreply@practice
+ 

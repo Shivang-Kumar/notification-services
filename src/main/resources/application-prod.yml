@@ -1,0 +1,11 @@
+sendgrid:
+  api-key: ${SENDGRID_API_KEY}
+  from-email: ${SENDGRID_Email_Add}
+
+notification:
+  email:
+    provider: sendgrid
+
+spring:
+  jpa:
+    show-sql: false
