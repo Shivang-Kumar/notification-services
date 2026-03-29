@@ -70,3 +70,15 @@ Template-based notification generation
 Batch processing using scheduler
 Multi-threaded execution for parallel processing
 Status tracking (PENDING, SENT, FAILED)
+
+
+
+External Email Provider Support
+Integrated support for SendGrid to send real emails in production-like scenarios
+Requires user configuration via environment variables:
+SENDGRID_API_KEY
+SENDGRID_SENDER_EMAIL
+
+This keeps sensitive credentials out of the codebase and follows secure configuration practices
+
+Falls back to SMTP (local/testing) setup when SendGrid is not configured
