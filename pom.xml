@@ -6,97 +6,70 @@
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
 		<version>3.2.5</version>
-		<relativePath/> <!-- lookup parent from repository -->
+		<relativePath/>
 	</parent>
 	<groupId>com.practice.microservices</groupId>
 	<artifactId>notification-service</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<name>notification-service</name>
 	<description>notification-service</description>
-	<url/>
-	<licenses>
-		<license/>
-	</licenses>
-	<developers>
-		<developer/>
-	</developers>
-	<scm>
-		<connection/>
-		<developerConnection/>
-		<tag/>
-		<url/>
-	</scm>
+
 	<properties>
 		<java.version>17</java.version>
+    <spring-ai.version>1.0.0</spring-ai.version>
 	</properties>
 	<dependencies>
-			<dependency>
-			  <groupId>org.springframework.boot</groupId>
-			  <artifactId>spring-boot-starter-web</artifactId>
-			</dependency>
-			
-			<dependency>
-			  <groupId>org.springframework.boot</groupId>
-			  <artifactId>spring-boot-starter-data-jpa</artifactId>
-			</dependency>
-			
-			<dependency>
-			  <groupId>org.springframework.kafka</groupId>
-			  <artifactId>spring-kafka</artifactId>
-			</dependency>
-			
-			<dependency>
-			  <groupId>org.springframework.boot</groupId>
-			  <artifactId>spring-boot-starter-mail</artifactId>
-			</dependency>
-			
-			<dependency>
-			  <groupId>org.postgresql</groupId>
-			  <artifactId>postgresql</artifactId>
-			  <scope>runtime</scope>
-			</dependency>
-			
-			<dependency>
-			  <groupId>org.projectlombok</groupId>
-			  <artifactId>lombok</artifactId>
-			  <optional>true</optional>
-			</dependency>
-			
-			<dependency>
-			  <groupId>org.springframework.boot</groupId>
-			  <artifactId>spring-boot-starter-test</artifactId>
-			  <scope>test</scope>
-			</dependency>
-			<dependency>
-  			  <groupId>org.springframework.boot</groupId>
-  			  <artifactId>spring-boot-starter-thymeleaf</artifactId>
-			</dependency>
-			<dependency>
- 				<groupId>org.springframework.boot</groupId>
-				<artifactId>spring-boot-starter-mail</artifactId>
-			</dependency>
-			<dependency>
-			    <groupId>com.sendgrid</groupId>
-			    <artifactId>sendgrid-java</artifactId>
-			    <version>4.10.2</version>
-			</dependency>
-			
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-web</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-jpa</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.kafka</groupId>
+			<artifactId>spring-kafka</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-mail</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-thymeleaf</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.postgresql</groupId>
+			<artifactId>postgresql</artifactId>
+			<scope>runtime</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.projectlombok</groupId>
+			<artifactId>lombok</artifactId>
+			<optional>true</optional>
+		</dependency>
+		<dependency>
+			<groupId>com.sendgrid</groupId>
+			<artifactId>sendgrid-java</artifactId>
+			<version>4.10.2</version>
+		</dependency>
+       <dependency>
+   		 <groupId>org.springframework.ai</groupId>
+   		 <artifactId>spring-ai-starter-model-openai</artifactId>
+   		 <version>1.0.5</version>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-test</artifactId>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
+
+	
 
 	<build>
 		<plugins>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-compiler-plugin</artifactId>
-				<configuration>
-					<annotationProcessorPaths>
-						<path>
-							<groupId>org.projectlombok</groupId>
-							<artifactId>lombok</artifactId>
-						</path>
-					</annotationProcessorPaths>
-				</configuration>
-			</plugin>
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
@@ -111,5 +84,4 @@
 			</plugin>
 		</plugins>
 	</build>
-
 </project>
