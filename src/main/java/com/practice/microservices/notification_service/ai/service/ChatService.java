@@ -21,161 +21,157 @@ import com.practice.microservices.notification_service.ai.repositories.MessageRe
 @Service
 public class ChatService {
 
-    private final ChatClient chatClient;
-    private final MessageRepository messageRepo;
-    private final EmailDraftRepository draftRepo;
-    private final ConversationRepository  conversationRepository;
+	private final ChatClient chatClient;
+	private final MessageRepository messageRepo;
+	private final EmailDraftRepository draftRepo;
+	private final ConversationRepository conversationRepository;
 
+	public String test() {
+		return chatClient.prompt().user("Say hello").call().content();
+	}
 
-    public ChatService(ChatClient.Builder builder,
-                       MessageRepository messageRepo,
-                       EmailDraftRepository draftRepo,
-                       ConversationRepository conversationRepository) {
+	public ChatService(ChatClient.Builder builder, MessageRepository messageRepo, EmailDraftRepository draftRepo,
+			ConversationRepository conversationRepository) {
 
-        this.chatClient = builder.build();
-        this.messageRepo = messageRepo;
-        this.draftRepo = draftRepo;
-        this.conversationRepository=conversationRepository;
-    }
+		this.chatClient = builder.build();
+		this.messageRepo = messageRepo;
+		this.draftRepo = draftRepo;
+		this.conversationRepository = conversationRepository;
+	}
 
-    public ChatApiResponse chat(ChatRequest request) {
+	public ChatApiResponse chat(ChatRequest request) {
 
-        // Step 1: Save user message
-        saveMessage(request.getConversationId(), "USER", request.getMessage());
+		// Step 1: Save user message
+		saveMessage(request.getConversationId(), "USER", request.getMessage());
 
-        // Step 2: Fetch history + draft
-        List<Message> history=messageRepo.findByConversationIdOrderByCreatedAtAsc(request.getConversationId());
-        EmailDraft draft = draftRepo.findById(request.getConversationId())
-                .orElse(new EmailDraft(request.getConversationId()));
+		// Step 2: Fetch history + draft
+		List<Message> history = messageRepo.findByConversationIdOrderByCreatedAtAsc(request.getConversationId());
+		EmailDraft draft = draftRepo.findById(request.getConversationId())
+				.orElse(new EmailDraft(request.getConversationId()));
 
-        // Step 3: Build prompt
-        String prompt = buildPrompt(history, draft);
+		// Step 3: Build prompt
+		String prompt = buildPrompt(history, draft);
 
-        // Step 4: Call LLM
-        String response = chatClient.prompt()
-                .user(prompt)
-                .call()
-                .content();
+		// Step 4: Call LLM
+		String response = chatClient.prompt().user(prompt).call().content();
 
-        // Step 5: Save assistant message
-        saveMessage(request.getConversationId(), "ASSISTANT", response);
+		// Step 5: Save assistant message
+		saveMessage(request.getConversationId(), "ASSISTANT", response);
 
-        // Step 6: Parse & update draft
-        updateDraftFromResponse(draft, response,request.getConversationId());
+		// Step 6: Parse & update draft
+		updateDraftFromResponse(draft, response, request.getConversationId());
 
-        return new ChatApiResponse(response);
-    }
-    
-    
-    private String buildPrompt(List<Message> history, EmailDraft draft) {
+		return new ChatApiResponse(response);
+	}
 
-        StringBuilder sb = new StringBuilder();
+	private String buildPrompt(List<Message> history, EmailDraft draft) {
 
-        sb.append("""
-    You are an email assistant.
+		StringBuilder sb = new StringBuilder();
 
-    Rules:
-    - Help user draft an email
-    - Collect: to, subject, body
-    - If missing fields → ask user
-    - NEVER assume email address
-    - Only prepare email, DO NOT send
+		sb.append("""
+				You are an email assistant.
 
-    Return JSON ONLY:
-    {
-      "to": "...",
-      "subject": "...",
-      "body": "...",
-      "missing_fields": [],
-      "action": "COLLECT" | "READY"
-    }
-    """);
+				Rules:
+				- Help user draft an email
+				- Collect: to, subject, body
+				- If missing fields → ask user
+				- NEVER assume email address
+				- Only prepare email, DO NOT send
 
-        sb.append("\n\nCurrent Draft:\n");
-        sb.append("To: ").append(draft.getToEmail()).append("\n");
-        sb.append("Subject: ").append(draft.getSubject()).append("\n");
-        sb.append("Body: ").append(draft.getBody()).append("\n");
+				Return JSON ONLY:
+				{
+				  "to": "...",
+				  "subject": "...",
+				  "body": "...",
+				  "missing_fields": [],
+				  "action": "COLLECT" | "READY"
+				}
+				""");
 
-        sb.append("\n\nConversation:\n");
+		sb.append("\n\nCurrent Draft:\n");
+		sb.append("To: ").append(draft.getToEmail()).append("\n");
+		sb.append("Subject: ").append(draft.getSubject()).append("\n");
+		sb.append("Body: ").append(draft.getBody()).append("\n");
 
-        for (Message msg : history) {
-            sb.append(msg.getRole()).append(": ").append(msg.getContent()).append("\n");
-        }
+		sb.append("\n\nConversation:\n");
 
-        return sb.toString();
-    }
-    private void saveMessage(UUID conversationId, String role, String content) {
+		for (Message msg : history) {
+			sb.append(msg.getRole()).append(": ").append(msg.getContent()).append("\n");
+		}
 
-        ensureConversationExists(conversationId);
+		return sb.toString();
+	}
 
-        Message message = new Message();
-        message.setConversationId(conversationId);
-        message.setRole(role);
-        message.setContent(content);
-        message.setCreatedAt(LocalDateTime.now());
+	private void saveMessage(UUID conversationId, String role, String content) {
 
-        messageRepo.save(message);
-    }
-    
-    private void ensureConversationExists(UUID conversationId) {
+		ensureConversationExists(conversationId);
 
-        boolean exists = conversationRepository.existsById(conversationId);
+		Message message = new Message();
+		message.setConversationId(conversationId);
+		message.setRole(role);
+		message.setContent(content);
+		message.setCreatedAt(LocalDateTime.now());
 
-        if (!exists) {
-            Conversation conversation = new Conversation();
-            conversation.setId(conversationId);
-            conversation.setStatus("COLLECTING");
-            conversation.setCreatedAt(LocalDateTime.now());
-            conversation.setUpdateAt(LocalDateTime.now());
+		messageRepo.save(message);
+	}
 
-            conversationRepository.save(conversation);
-        }
-    }
-    
-    private void updateDraftFromResponse(EmailDraft draft, String response, UUID conversationId) {
+	private void ensureConversationExists(UUID conversationId) {
 
-        try {
-            ObjectMapper mapper = new ObjectMapper();
+		boolean exists = conversationRepository.existsById(conversationId);
 
-            // Convert JSON string → Java object
-            LlmResponse llm = mapper.readValue(response, LlmResponse.class);
+		if (!exists) {
+			Conversation conversation = new Conversation();
+			conversation.setId(conversationId);
+			conversation.setStatus("COLLECTING");
+			conversation.setCreatedAt(LocalDateTime.now());
+			conversation.setUpdateAt(LocalDateTime.now());
 
-            // If draft is new, attach conversationId
-            if (draft.getConversationId() == null) {
-                draft.setConversationId(conversationId);
-            }
+			conversationRepository.save(conversation);
+		}
+	}
 
-            // Update only if values are present (avoid overwriting with null)
-            if (llm.getTo() != null) {
-                draft.setToEmail(llm.getTo());
-            }
+	private void updateDraftFromResponse(EmailDraft draft, String response, UUID conversationId) {
 
-            if (llm.getSubject() != null) {
-                draft.setSubject(llm.getSubject());
-            }
+		try {
+			ObjectMapper mapper = new ObjectMapper();
 
-            if (llm.getBody() != null) {
-                draft.setBody(llm.getBody());
-            }
+			// Convert JSON string → Java object
+			LlmResponse llm = mapper.readValue(response, LlmResponse.class);
 
-            // Missing fields
-            if (llm.getMissing_fields() != null) {
-                draft.setMissingFields(String.join(",", llm.getMissing_fields()));
-            }
+			// If draft is new, attach conversationId
+			if (draft.getConversationId() == null) {
+				draft.setConversationId(conversationId);
+			}
 
-            // Status (COLLECTING / READY)
-            if (llm.getAction() != null) {
-                draft.setStatus(llm.getAction());
-            }
+			// Update only if values are present (avoid overwriting with null)
+			if (llm.getTo() != null) {
+				draft.setToEmail(llm.getTo());
+			}
 
-            draft.setUpdatedAt(LocalDateTime.now());
+			if (llm.getSubject() != null) {
+				draft.setSubject(llm.getSubject());
+			}
 
-            draftRepo.save(draft);
+			if (llm.getBody() != null) {
+				draft.setBody(llm.getBody());
+			}
 
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to parse LLM response: " + response, e);
-        }
-    }
+			// Missing fields
+			if (llm.getMissing_fields() != null) {
+				draft.setMissingFields(String.join(",", llm.getMissing_fields()));
+			}
+
+			// Status (COLLECTING / READY)
+			if (llm.getAction() != null) {
+				draft.setStatus(llm.getAction());
+			}
+
+			draft.setUpdatedAt(LocalDateTime.now());
+
+			draftRepo.save(draft);
+
+		} catch (Exception e) {
+			throw new RuntimeException("Failed to parse LLM response: " + response, e);
+		}
+	}
 }
-
-

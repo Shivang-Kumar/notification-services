@@ -9,3 +9,13 @@ notification:
 spring:
   jpa:
     show-sql: false
+  ai:
+    vertex:
+      ai:
+        project-id: ${YOUR_PROJECT_ID}
+        location: us-central1
+        gemini:
+         chat:
+         options:
+           model: gemini-1.5-flash
+           temperature: 0.2
