@@ -1,5 +1,6 @@
 package com.practice.microservices.notification_service.ai.service;
 
+
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -17,161 +18,227 @@ import com.practice.microservices.notification_service.ai.entity.Message;
 import com.practice.microservices.notification_service.ai.repositories.ConversationRepository;
 import com.practice.microservices.notification_service.ai.repositories.EmailDraftRepository;
 import com.practice.microservices.notification_service.ai.repositories.MessageRepository;
+import com.practice.microservices.notification_service.models.Notification;
+import com.practice.microservices.notification_service.services.SendGridEmailSender;
 
 @Service
 public class ChatService {
 
-	private final ChatClient chatClient;
-	private final MessageRepository messageRepo;
-	private final EmailDraftRepository draftRepo;
-	private final ConversationRepository conversationRepository;
+    private final ChatClient chatClient;
+    private final MessageRepository messageRepo;
+    private final EmailDraftRepository draftRepo;
+    private final ConversationRepository conversationRepository;
+    private final ObjectMapper objectMapper;
+    private final SendGridEmailSender sendGridEmailSender;
 
-	public String test() {
-		return chatClient.prompt().user("Say hello").call().content();
-	}
+    public ChatService(ChatClient.Builder builder,
+                       MessageRepository messageRepo,
+                       EmailDraftRepository draftRepo,
+                       ConversationRepository conversationRepository,
+                       SendGridEmailSender sendGridEmailSender) {
 
-	public ChatService(ChatClient.Builder builder, MessageRepository messageRepo, EmailDraftRepository draftRepo,
-			ConversationRepository conversationRepository) {
+        this.chatClient = builder.build();
+        this.messageRepo = messageRepo;
+        this.draftRepo = draftRepo;
+        this.conversationRepository = conversationRepository;
+        this.objectMapper = new ObjectMapper();
+        this.sendGridEmailSender=sendGridEmailSender;
+    }
 
-		this.chatClient = builder.build();
-		this.messageRepo = messageRepo;
-		this.draftRepo = draftRepo;
-		this.conversationRepository = conversationRepository;
-	}
+    public ChatApiResponse chat(ChatRequest request) throws Exception {
 
-	public ChatApiResponse chat(ChatRequest request) {
+        UUID conversationId = request.getConversationId();
 
-		// Step 1: Save user message
-		saveMessage(request.getConversationId(), "USER", request.getMessage());
+        // 1. Save user message
+        saveMessage(conversationId, "USER", request.getMessage());
 
-		// Step 2: Fetch history + draft
-		List<Message> history = messageRepo.findByConversationIdOrderByCreatedAtAsc(request.getConversationId());
-		EmailDraft draft = draftRepo.findById(request.getConversationId())
-				.orElse(new EmailDraft(request.getConversationId()));
+        // 2. Fetch history + draft
+        List<Message> history =
+                messageRepo.findByConversationIdOrderByCreatedAtAsc(conversationId);
 
-		// Step 3: Build prompt
-		String prompt = buildPrompt(history, draft);
+        EmailDraft draft = draftRepo.findById(conversationId)
+                .orElse(new EmailDraft(conversationId));
 
-		// Step 4: Call LLM
-		String response = chatClient.prompt().user(prompt).call().content();
+        // 3. Build prompt
+        String prompt = buildPrompt(history, draft);
 
-		// Step 5: Save assistant message
-		saveMessage(request.getConversationId(), "ASSISTANT", response);
+        // 4. Call LLM
+        String rawResponse = chatClient.prompt()
+                .user(prompt)
+                .call()
+                .content();
 
-		// Step 6: Parse & update draft
-		updateDraftFromResponse(draft, response, request.getConversationId());
+        // 5. Parse safely
+        LlmResponse llm = parseLlmResponse(rawResponse);
 
-		return new ChatApiResponse(response);
-	}
+        // 6. Update draft
+        updateDraft(draft, llm, conversationId);
 
-	private String buildPrompt(List<Message> history, EmailDraft draft) {
+        // 7. Save assistant reply
+        saveMessage(conversationId, "ASSISTANT", llm.getReply());
 
-		StringBuilder sb = new StringBuilder();
+        // 8. Handle SEND action
+        if ("SEND".equalsIgnoreCase(llm.getAction())) {
+            handleSend(draft, request.getMessage(), conversationId);
+        }
 
-		sb.append("""
-				You are an email assistant.
+        // 9. Return clean response
+        return new ChatApiResponse(llm.getReply());
+    }
 
-				Rules:
-				- Help user draft an email
-				- Collect: to, subject, body
-				- If missing fields → ask user
-				- NEVER assume email address
-				- Only prepare email, DO NOT send
+    // ---------------- PROMPT ----------------
 
-				Return JSON ONLY:
-				{
-				  "to": "...",
-				  "subject": "...",
-				  "body": "...",
-				  "missing_fields": [],
-				  "action": "COLLECT" | "READY"
-				}
-				""");
+    private String buildPrompt(List<Message> history, EmailDraft draft) {
 
-		sb.append("\n\nCurrent Draft:\n");
-		sb.append("To: ").append(draft.getToEmail()).append("\n");
-		sb.append("Subject: ").append(draft.getSubject()).append("\n");
-		sb.append("Body: ").append(draft.getBody()).append("\n");
+        StringBuilder sb = new StringBuilder();
 
-		sb.append("\n\nConversation:\n");
+        sb.append("""
+            You are an AI email assistant.
 
-		for (Message msg : history) {
-			sb.append(msg.getRole()).append(": ").append(msg.getContent()).append("\n");
-		}
+            Rules:
+            - Help user draft email
+            - Collect: to, subject, body
+            - Ask for missing fields clearly
+            - NEVER assume email address
+            - Only mark SEND when user explicitly confirms
 
-		return sb.toString();
-	}
+            Return JSON ONLY:
 
-	private void saveMessage(UUID conversationId, String role, String content) {
+            {
+              "to": "",
+              "subject": "",
+              "body": "",
+              "missing_fields": [],
+              "action": "COLLECT | READY | SEND",
+              "reply": ""
+            }
+            """);
 
-		ensureConversationExists(conversationId);
+        sb.append("\n\nCurrent Draft:\n");
+        sb.append("To: ").append(nullSafe(draft.getToEmail())).append("\n");
+        sb.append("Subject: ").append(nullSafe(draft.getSubject())).append("\n");
+        sb.append("Body: ").append(nullSafe(draft.getBody())).append("\n");
 
-		Message message = new Message();
-		message.setConversationId(conversationId);
-		message.setRole(role);
-		message.setContent(content);
-		message.setCreatedAt(LocalDateTime.now());
+        sb.append("\n\nConversation:\n");
 
-		messageRepo.save(message);
-	}
+        for (Message msg : history) {
+            sb.append(msg.getRole()).append(": ")
+              .append(msg.getContent()).append("\n");
+        }
 
-	private void ensureConversationExists(UUID conversationId) {
+        return sb.toString();
+    }
 
-		boolean exists = conversationRepository.existsById(conversationId);
+    // ---------------- PARSER ----------------
 
-		if (!exists) {
-			Conversation conversation = new Conversation();
-			conversation.setId(conversationId);
-			conversation.setStatus("COLLECTING");
-			conversation.setCreatedAt(LocalDateTime.now());
-			conversation.setUpdateAt(LocalDateTime.now());
+    private LlmResponse parseLlmResponse(String response) {
 
-			conversationRepository.save(conversation);
-		}
-	}
+        try {
+            String cleaned = response.trim();
 
-	private void updateDraftFromResponse(EmailDraft draft, String response, UUID conversationId) {
+            // Handle cases where LLM adds extra text
+            if (!cleaned.startsWith("{")) {
+                cleaned = cleaned.substring(cleaned.indexOf("{"));
+            }
 
-		try {
-			ObjectMapper mapper = new ObjectMapper();
+            return objectMapper.readValue(cleaned, LlmResponse.class);
 
-			// Convert JSON string → Java object
-			LlmResponse llm = mapper.readValue(response, LlmResponse.class);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to parse LLM response: " + response, e);
+        }
+    }
 
-			// If draft is new, attach conversationId
-			if (draft.getConversationId() == null) {
-				draft.setConversationId(conversationId);
-			}
+    // ---------------- DRAFT UPDATE ----------------
 
-			// Update only if values are present (avoid overwriting with null)
-			if (llm.getTo() != null) {
-				draft.setToEmail(llm.getTo());
-			}
+    private void updateDraft(EmailDraft draft, LlmResponse llm, UUID conversationId) {
 
-			if (llm.getSubject() != null) {
-				draft.setSubject(llm.getSubject());
-			}
+        if (draft.getConversationId() == null) {
+            draft.setConversationId(conversationId);
+        }
 
-			if (llm.getBody() != null) {
-				draft.setBody(llm.getBody());
-			}
+        if (llm.getTo() != null) {
+            draft.setToEmail(llm.getTo());
+        }
 
-			// Missing fields
-			if (llm.getMissing_fields() != null) {
-				draft.setMissingFields(String.join(",", llm.getMissing_fields()));
-			}
+        if (llm.getSubject() != null) {
+            draft.setSubject(llm.getSubject());
+        }
 
-			// Status (COLLECTING / READY)
-			if (llm.getAction() != null) {
-				draft.setStatus(llm.getAction());
-			}
+        if (llm.getBody() != null) {
+            draft.setBody(llm.getBody());
+        }
 
-			draft.setUpdatedAt(LocalDateTime.now());
+        if (llm.getMissing_fields() != null) {
+            draft.setMissingFields(String.join(",", llm.getMissing_fields()));
+        }
 
-			draftRepo.save(draft);
+        if (llm.getAction() != null) {
+            draft.setStatus(llm.getAction());
+        }
 
-		} catch (Exception e) {
-			throw new RuntimeException("Failed to parse LLM response: " + response, e);
-		}
-	}
+        draft.setUpdatedAt(LocalDateTime.now());
+
+        draftRepo.save(draft);
+    }
+
+    // ---------------- SEND HANDLER ----------------
+
+    private void handleSend(EmailDraft draft, String userMessage, UUID conversationId) throws Exception {
+
+        // Guardrail 1: confirmation
+        if (!userMessage.toLowerCase().contains("send")) {
+            throw new RuntimeException("User did not explicitly confirm sending.");
+        }
+
+        // Guardrail 2: validation
+        if (draft.getToEmail() == null ||
+            draft.getSubject() == null ||
+            draft.getBody() == null) {
+            throw new RuntimeException("Email is incomplete.");
+        }
+
+        // 🔥 TODO: Replace with your notification service call
+        Notification mynotify=new Notification();
+        mynotify.setRecipient(draft.getToEmail());
+        sendGridEmailSender.send(mynotify, draft.getSubject(), draft.getBody());
+        
+        // Save TOOL message
+        saveMessage(conversationId, "TOOL",
+                "Email sent to " + draft.getToEmail());
+    }
+
+    // ---------------- MESSAGE SAVE ----------------
+
+    private void saveMessage(UUID conversationId, String role, String content) {
+
+        ensureConversationExists(conversationId);
+
+        Message message = new Message();
+        message.setConversationId(conversationId);
+        message.setRole(role);
+        message.setContent(content);
+        message.setCreatedAt(LocalDateTime.now());
+
+        messageRepo.save(message);
+    }
+
+    private void ensureConversationExists(UUID conversationId) {
+
+        if (!conversationRepository.existsById(conversationId)) {
+
+            Conversation conversation = new Conversation();
+            conversation.setId(conversationId);
+            conversation.setStatus("COLLECTING");
+            conversation.setCreatedAt(LocalDateTime.now());
+            conversation.setUpdateAt(LocalDateTime.now());
+
+            conversationRepository.save(conversation);
+        }
+    }
+
+    // ---------------- UTILS ----------------
+
+    private String nullSafe(String value) {
+        return value == null ? "" : value;
+    }
 }

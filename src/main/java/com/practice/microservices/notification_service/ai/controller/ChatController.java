@@ -21,12 +21,9 @@ public class ChatController {
     }
 
     @PostMapping("/chat")
-    public ChatApiResponse chat(@RequestBody ChatRequest request) {
+    public ChatApiResponse chat(@RequestBody ChatRequest request) throws Exception {
         return chatService.chat(request);
     }
     
-    @GetMapping("/test-ai")
-    public String test() {
-        return chatService.test();
-    }
+  
 }

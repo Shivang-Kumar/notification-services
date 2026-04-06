@@ -3,6 +3,13 @@ server:
 
 
 spring:
+  ai:
+   vertex:
+    ai:
+     gemini:
+      project-id: notification-api-492516
+      location: us-central1
+
   profiles:
     active: prod
   thymeleaf:

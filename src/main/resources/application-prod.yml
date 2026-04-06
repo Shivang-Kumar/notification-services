@@ -1,6 +1,6 @@
 sendgrid:
   api-key: ${SENDGRID_API_KEY}
-  from-email: ${SENDGRID_Email_Add}
+  from-email: ${SENDGRID_EMAIL_ADDRESS}
 
 notification:
   email:
@@ -8,14 +8,12 @@ notification:
 
 spring:
   jpa:
-    show-sql: false
+   show-sql: false
   ai:
-    vertex:
-      ai:
-        project-id: ${YOUR_PROJECT_ID}
-        location: us-central1
-        gemini:
-         chat:
-         options:
-           model: gemini-1.5-flash
-           temperature: 0.2
+   vertex:
+    ai:
+     gemini:
+       chat:
+        options:
+          model: gemini-2.5-flash-lite
+          temperature: 0.2
