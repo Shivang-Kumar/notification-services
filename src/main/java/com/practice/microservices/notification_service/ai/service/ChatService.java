@@ -1,7 +1,9 @@
 package com.practice.microservices.notification_service.ai.service;
 
 
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
 
@@ -12,6 +14,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.practice.microservices.notification_service.ai.dto.ChatApiResponse;
 import com.practice.microservices.notification_service.ai.dto.ChatRequest;
 import com.practice.microservices.notification_service.ai.dto.LlmResponse;
+import com.practice.microservices.notification_service.ai.dto.NotificationEvent;
 import com.practice.microservices.notification_service.ai.entity.Conversation;
 import com.practice.microservices.notification_service.ai.entity.EmailDraft;
 import com.practice.microservices.notification_service.ai.entity.Message;
@@ -30,12 +33,14 @@ public class ChatService {
     private final ConversationRepository conversationRepository;
     private final ObjectMapper objectMapper;
     private final SendGridEmailSender sendGridEmailSender;
+    private final NotificationEventPublisher eventPublisher;
 
     public ChatService(ChatClient.Builder builder,
                        MessageRepository messageRepo,
                        EmailDraftRepository draftRepo,
                        ConversationRepository conversationRepository,
-                       SendGridEmailSender sendGridEmailSender) {
+                       SendGridEmailSender sendGridEmailSender,
+                       NotificationEventPublisher eventPublisher) {
 
         this.chatClient = builder.build();
         this.messageRepo = messageRepo;
@@ -43,6 +48,7 @@ public class ChatService {
         this.conversationRepository = conversationRepository;
         this.objectMapper = new ObjectMapper();
         this.sendGridEmailSender=sendGridEmailSender;
+        this.eventPublisher=eventPublisher;
     }
 
     public ChatApiResponse chat(ChatRequest request) throws Exception {
@@ -198,9 +204,9 @@ public class ChatService {
         }
 
         // 🔥 TODO: Replace with your notification service call
-        Notification mynotify=new Notification();
-        mynotify.setRecipient(draft.getToEmail());
-        sendGridEmailSender.send(mynotify, draft.getSubject(), draft.getBody());
+        NotificationEvent mynotify=createNotificationEvent(draft,conversationId);
+        eventPublisher.publish(mynotify);
+        
         
         // Save TOOL message
         saveMessage(conversationId, "TOOL",
@@ -234,6 +240,28 @@ public class ChatService {
 
             conversationRepository.save(conversation);
         }
+    }
+    
+    //Creating event for kafka
+    private  NotificationEvent createNotificationEvent(EmailDraft email,UUID conversationId)
+    {
+    	
+    	HashMap<String,Object> details=new HashMap<>();
+    	details.put("subject", email.getSubject());
+    	details.put("body", email.getBody());
+    	
+    	NotificationEvent event=NotificationEvent.builder()
+    			.eventId(UUID.randomUUID().toString())
+    			.traceId(conversationId.toString())
+    			.eventType("AI EMAIL")
+    			.channel("EMAIL")
+    			.recipient(email.getToEmail())
+    			.payload(details)
+    			.templateId("GEMINI_EMAIL")
+    			.createdAt(Instant.now())
+    			.build();
+    	
+    	return event;
     }
 
     // ---------------- UTILS ----------------
