@@ -1,6 +1,7 @@
 package com.practice.microservices.notification_service.ai.service;
 
 
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -8,6 +9,8 @@ import java.util.List;
 import java.util.UUID;
 
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -34,6 +37,10 @@ public class ChatService {
     private final ObjectMapper objectMapper;
     private final SendGridEmailSender sendGridEmailSender;
     private final NotificationEventPublisher eventPublisher;
+    
+
+    @Value("classpath:prompts/system-prompt.txt")
+    private Resource resource;
 
     public ChatService(ChatClient.Builder builder,
                        MessageRepository messageRepo,
@@ -93,32 +100,22 @@ public class ChatService {
     }
 
     // ---------------- PROMPT ----------------
+    
 
-    private String buildPrompt(List<Message> history, EmailDraft draft) {
+
+    public String getPrompt() throws Exception {
+        return new String(
+                resource.getInputStream().readAllBytes(),
+                StandardCharsets.UTF_8
+        );
+    }
+
+    private String buildPrompt(List<Message> history, EmailDraft draft) throws Exception {
 
         StringBuilder sb = new StringBuilder();
+        String prompt=getPrompt();
 
-        sb.append("""
-            You are an AI email assistant.
-
-            Rules:
-            - Help user draft email
-            - Collect: to, subject, body
-            - Ask for missing fields clearly
-            - NEVER assume email address
-            - Only mark SEND when user explicitly confirms
-
-            Return JSON ONLY:
-
-            {
-              "to": "",
-              "subject": "",
-              "body": "",
-              "missing_fields": [],
-              "action": "COLLECT | READY | SEND",
-              "reply": ""
-            }
-            """);
+        sb.append(prompt);
 
         sb.append("\n\nCurrent Draft:\n");
         sb.append("To: ").append(nullSafe(draft.getToEmail())).append("\n");
