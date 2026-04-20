@@ -5,7 +5,7 @@
 ## 📸 Screenshots
 
 ### Architecture
-![Architecture](docs/images/architecture.png)
+![Architecture](architecture.png)
 
 ### Kafka Topic — live messages
 ![Kafka](docs/images/kafka-topic.png)
