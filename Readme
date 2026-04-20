@@ -1,84 +1,147 @@
-Notification Microservice:
+# 📬 Notification Microservice
 
-Overview:
+> A production-grade, event-driven notification system built with Spring Boot and Apache Kafka — supporting multi-channel delivery (Email, SMS) with retry logic, dead letter queues, and parallel processing.
 
-The Notification Microservice is a backend system designed to handle sending notifications across multiple channels like Email and SMS in a scalable and reliable way.
-In real-world applications (e-commerce, banking, SaaS), sending notifications is a critical but complex problem — you need retries, fault tolerance, and asynchronous processing to avoid losing messages. This project focuses on solving exactly that.
+## 📸 Screenshots
 
-Key Highlights:
-Fully asynchronous, event-driven architecture using Kafka
-Fault-tolerant processing with retry and dead letter queue (DLQ)
-Multi-threaded worker system for high throughput
-Template-based notifications using Thymeleaf
+### Architecture
+![Architecture](docs/images/architecture.png)
 
-Architecture & Design:
-This service follows an event-driven, asynchronous design where notification requests are first published to Kafka and then processed reliably in the background.
+### Kafka Topic — live messages
+![Kafka](docs/images/kafka-topic.png)
 
-Instead of sending notifications immediately, events are:
-Persisted before acknowledgment to avoid data loss
-Pulled in batches by a scheduler for controlled processing
-Executed in parallel using a thread pool for higher throughput
-A dedicated processor resolves templates and dynamically routes notifications to the appropriate channel (Email/SMS), keeping the system extensible and clean.
+### Notification status in PostgreSQL
+![DB](docs/images/db-status.png)
 
-To ensure reliability:
-Failed notifications are retried multiple times
-Persistent failures are moved to a Dead Letter Queue (DLQ)
+---
 
+## 📌 Why This Project?
 
-Flow Diagram:
+In real-world systems — e-commerce, banking, SaaS — sending notifications is deceptively hard. You need **asynchronous processing**, **fault tolerance**, **retries**, and **channel extensibility** without losing a single message.
 
-[Producer Service] → Kafka Topic (notification.event) → [Notification Consumer] → [PostgreSQL] 
-                                                                                         │
-                                                                                         ▼
-                                                                               [Scheduled Worker]
-                                                                                         │
-                                                                                         ▼
-                                                                              [Thread Pool Executor]
-                                                                                   │     │     │
-                                                                                   ▼     ▼     ▼
-                                                                              [Notification Processor]
-                                                                                       │
-                                                                                       ▼
-                                                                                   [Channel Router]
-                                                                              ┌─────────┼─────────┐
-                                                                              ▼         ▼         ▼
-                                                                           [Email]    [SMS]   [Extensible]
-	                                                                           │        │        │
-	                                                                           ▼        ▼        ▼
-                                                                                 Retry → DLQ
+This microservice solves exactly that: notifications are never sent synchronously. Every event is persisted first, then processed reliably in the background — even across failures.
+
+---
+
+## ✨ Key Features
+
+- **Fully asynchronous, event-driven** — built on Apache Kafka; no blocking calls
+- **Multi-channel delivery** — Email (SMTP / SendGrid) and SMS, cleanly routed via a Channel Router
+- **Retry mechanism** — failed notifications are retried multiple times automatically
+- **Dead Letter Queue (DLQ)** — persistent failures are isolated without affecting healthy processing
+- **Batch + parallel processing** — a scheduler pulls events in batches, a thread pool executes them concurrently
+- **Template-based notifications** — dynamic content rendered with Thymeleaf
+- **Status tracking** — every notification is tracked as `PENDING` → `SENT` / `FAILED`
+- **Secure credential management** — SendGrid API key injected via environment variables, never hardcoded
+
+---
+
+## Architecture
+
+This service follows an **event-driven, persistence-first** design. Notification requests are published to Kafka, persisted to PostgreSQL immediately, then processed asynchronously — ensuring zero data loss even if workers crash.
 
 
 
-Tech Stack:
-Backend: Spring Boot (Java)
-Database: PostgreSQL
-Messaging: Apache Kafka
-Template Engine: Thymeleaf
-Email: SMTP
-SMS: Mock implementation
-Build Tool: Maven
-Containerization: Docker
+## 🛠️ Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Backend | Java 17, Spring Boot 3.x |
+| Messaging | Apache Kafka |
+| Database | PostgreSQL |
+| Template Engine | Thymeleaf |
+| Email | SMTP (local) / SendGrid (production) |
+| SMS | Mock implementation (extensible) |
+| Containerization | Docker |
+| Build Tool | Maven |
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+- Java 17+
+- Docker & Docker Compose
+- Maven
+
+### Run locally
+
+# 1. Clone the repository
+git clone https://github.com/Shivang-Kumar/notification-services.git
+cd notification-services
+
+# 2. Start Kafka, PostgreSQL via Docker Compose
+docker-compose up -d
+
+# 3. Run the application
+./mvnw spring-boot:run
+
+The service will start on `http://localhost:8080`.
+
+---
+
+## ⚙️ Configuration
+
+All sensitive credentials are managed via environment variables — no secrets in the codebase.
+
+```env
+# PostgreSQL
+SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/notifications
+SPRING_DATASOURCE_USERNAME=your_db_user
+SPRING_DATASOURCE_PASSWORD=your_db_password
+
+# Kafka
+SPRING_KAFKA_BOOTSTRAP_SERVERS=localhost:9092
+
+# SendGrid (optional — falls back to SMTP if not set)
+SENDGRID_API_KEY=your_sendgrid_api_key
+SENDGRID_SENDER_EMAIL=your_verified_sender@example.com
+```
+
+> When `SENDGRID_API_KEY` is not set, the service falls back to SMTP for local/testing use.
+
+---
+
+##  How It Works — End to End
+
+1. A **producer service** publishes a notification event to the `notification.event` Kafka topic.
+2. The **Kafka consumer** receives the event, persists it to PostgreSQL as `PENDING`, and acknowledges the message.
+3. A **scheduled worker** polls the database in batches and submits tasks to a **thread pool executor**.
+4. The **Notification Processor** resolves the Thymeleaf template and passes the event to the **Channel Router**.
+5. The Channel Router dispatches to the correct provider — Email or SMS.
+6. On failure, the system **retries automatically**. After exhausting retries, the event is moved to the **Dead Letter Queue** and marked `FAILED`.
+
+---
+
+## 📂 Project Structure
+
+src/
+├── consumer/         # Kafka consumer — ingests and persists events
+├── worker/           # Scheduler + thread pool executor
+├── processor/        # Template resolution + channel routing logic
+├── channel/          # Email and SMS provider implementations
+├── model/            # Notification entity + status enums
+├── repository/       # Spring Data JPA repositories
+├── config/           # Kafka, thread pool, and app config
+└── templates/        # Thymeleaf notification templates
 
 
+---
 
-Features:
-Asynchronous notification processing
-Multi-channel support (Email, SMS — extensible)
-Retry mechanism for failed notifications
-Dead Letter Queue (DLQ) for permanent failures
-Template-based notification generation
-Batch processing using scheduler
-Multi-threaded execution for parallel processing
-Status tracking (PENDING, SENT, FAILED)
+## Notification Status Flow
 
+PENDING  ──►  SENT
+   │
+   └──► (retry) ──► FAILED ──► DLQ
 
+---
 
-External Email Provider Support
-Integrated support for SendGrid to send real emails in production-like scenarios
-Requires user configuration via environment variables:
-SENDGRID_API_KEY
-SENDGRID_SENDER_EMAIL
+## Extending the System
 
-This keeps sensitive credentials out of the codebase and follows secure configuration practices
+Adding a new channel (e.g. Push Notification, Slack) requires only:
 
-Falls back to SMTP (local/testing) setup when SendGrid is not configured
+1. Implementing the `NotificationChannel` interface
+2. Registering the channel in `ChannelRouter`
+
+No changes to the core processing pipeline needed — the system is open for extension, closed for modification.
