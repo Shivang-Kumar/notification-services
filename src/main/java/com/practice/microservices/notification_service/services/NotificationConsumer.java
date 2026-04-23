@@ -3,11 +3,13 @@ package com.practice.microservices.notification_service.services;
 import java.time.Instant;
 import jakarta.annotation.PostConstruct;
 
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.practice.microservices.notification_service.models.Notification;
 import com.practice.microservices.notification_service.models.NotificationDto;
@@ -33,11 +35,13 @@ public class NotificationConsumer {
     }
 
     @KafkaListener(topics = "notification.events")
-    public void consume(NotificationDto event,
+    public void consume(ConsumerRecord<String, String> record ,
                         Acknowledgment acknowledgment) {
 
         try {
-
+            
+        	NotificationDto event = this.objectMapper.readValue(record.value(), NotificationDto.class);
+        	
             Notification notification = new Notification();
 
             notification.setEventId(event.getEventId());
@@ -58,7 +62,12 @@ public class NotificationConsumer {
             //Commit offset ONLY after successful DB insert
             acknowledgment.acknowledge();
 
-        } catch (DataIntegrityViolationException e) {
+        } 
+        catch (JsonProcessingException e) {
+            System.out.println("Error while deserializing notification event");
+            acknowledgment.acknowledge(); // skipping it to process next items
+        }
+        catch (DataIntegrityViolationException e) {
 
             // Duplicate event → idempotent case
             acknowledgment.acknowledge();
