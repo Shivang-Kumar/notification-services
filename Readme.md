@@ -2,6 +2,10 @@
 
 > A production-grade, event-driven notification system built with Spring Boot and Apache Kafka — supporting multi-channel delivery (Email, SMS) with retry logic, dead letter queues, and parallel processing.
 
+## 🎥 Demo Video
+
+[![Watch Demo](docs/images/image.png)](https://drive.google.com/file/d/1ypSSVNwMyW4jjK5JfqVNMyFEpXOdLtIR/view?usp=sharing)
+
 ## 📸 Screenshots
 
 ### Architecture
