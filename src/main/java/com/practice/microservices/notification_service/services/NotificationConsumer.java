@@ -35,12 +35,12 @@ public class NotificationConsumer {
     }
 
     @KafkaListener(topics = "notification.events")
-    public void consume(ConsumerRecord<String, String> record ,
+    public void consume(ConsumerRecord<String, NotificationDto> record ,
                         Acknowledgment acknowledgment) {
 
         try {
             
-        	NotificationDto event = this.objectMapper.readValue(record.value(), NotificationDto.class);
+        	NotificationDto event =record.value();
         	
             Notification notification = new Notification();
 
